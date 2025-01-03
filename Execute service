@@ -1,0 +1,94 @@
+// Import necessary packages
+import java.util.concurrent.*;
+import java.util.*;
+
+public class AdvancedMultithreadingExample {
+
+    // Example 1: Using ExecutorService for managing a thread pool
+    public static void executorServiceExample() {
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+
+        Runnable task = () -> {
+            System.out.println(Thread.currentThread().getName() + " is executing task");
+        };
+
+        for (int i = 0; i < 5; i++) {
+            executor.submit(task);
+        }
+
+        executor.shutdown();
+    }
+
+    // Example 2: Using Fork/Join Framework
+    static class ForkJoinSumCalculator extends RecursiveTask<Long> {
+        private final long[] numbers;
+        private final int start;
+        private final int end;
+
+        private static final long THRESHOLD = 10_000;
+
+        public ForkJoinSumCalculator(long[] numbers) {
+            this(numbers, 0, numbers.length);
+        }
+
+        private ForkJoinSumCalculator(long[] numbers, int start, int end) {
+            this.numbers = numbers;
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        protected Long compute() {
+            int length = end - start;
+            if (length <= THRESHOLD) {
+                return computeSequentially();
+            }
+            ForkJoinSumCalculator leftTask = new ForkJoinSumCalculator(numbers, start, start + length / 2);
+            leftTask.fork();
+            ForkJoinSumCalculator rightTask = new ForkJoinSumCalculator(numbers, start + length / 2, end);
+            Long rightResult = rightTask.compute();
+            Long leftResult = leftTask.join();
+            return leftResult + rightResult;
+        }
+
+        private long computeSequentially() {
+            long sum = 0;
+            for (int i = start; i < end; i++) {
+                sum += numbers[i];
+            }
+            return sum;
+        }
+    }
+
+    public static void forkJoinExample() {
+        long[] numbers = LongStream.rangeClosed(1, 1_000_000).toArray();
+        ForkJoinTask<Long> task = new ForkJoinSumCalculator(numbers);
+        ForkJoinPool pool = new ForkJoinPool();
+        long sum = pool.invoke(task);
+        System.out.println("Sum: " + sum);
+    }
+
+    // Example 3: Using CompletableFuture for asynchronous tasks
+    public static void completableFutureExample() {
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            System.out.println("Running task asynchronously: " + Thread.currentThread().getName());
+        });
+
+        future.thenRun(() -> {
+            System.out.println("Task completed. Executing another task.");
+        });
+
+        future.join();
+    }
+
+    public static void main(String[] args) {
+        System.out.println("--- ExecutorService Example ---");
+        executorServiceExample();
+
+        System.out.println("\n--- Fork/Join Example ---");
+        forkJoinExample();
+
+        System.out.println("\n--- CompletableFuture Example ---");
+        completableFutureExample();
+    }
+}
